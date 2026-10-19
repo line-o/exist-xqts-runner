@@ -61,7 +61,7 @@ libraryDependencies ++= {
     // "com.fasterxml" %	"aalto-xml" % "1.3.4",
     "org.exist-db.thirdparty.com.fasterxml" % "aalto-xml" % "1.1.0-20180330",
     "org.parboiled" %% "parboiled" % "2.5.1",
-    "org.apache.ant" % "ant-junit" % "1.10.15", // used for formatting junit style report
+    "org.apache.ant" % "ant-junit" % "1.10.15", // used for aggregating the JUnit style reports into a HTML report
 
     "net.sf.saxon" % "Saxon-HE" % "12.5",
     if (existV.endsWith("-SNAPSHOT")) existCore.changing() else existCore,
@@ -88,6 +88,9 @@ excludeDependencies ++= Seq(
   ExclusionRule("org.eclipse.jetty.ee10"),
   ExclusionRule("org.eclipse.jetty.ee10.websocket"),
 
+  // The runner uses no JUnit API: it writes the JUnit report format itself and embeds eXist-db
+  // without its JUnit test support (both ant-junit and older exist-core versions bring JUnit 4).
+  ExclusionRule("junit", "junit"),
   ExclusionRule("org.hamcrest", "hamcrest-core"),
   ExclusionRule("org.hamcrest", "hamcrest-library")
 )

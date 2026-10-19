@@ -27,7 +27,6 @@ import org.exist.start.classloader.Classpath;
 import org.exist.storage.BrokerPool;
 import org.exist.storage.journal.Journal;
 import org.exist.util.Configuration;
-import org.exist.util.ConfigurationHelper;
 import org.exist.util.DatabaseConfigurationException;
 import org.exist.util.FileUtils;
 
@@ -46,11 +45,16 @@ import static org.exist.repo.AutoDeploymentTrigger.AUTODEPLOY_PROPERTY;
  */
 final class EmbeddedDatabase {
 
+    private final Path configFile;
     private BrokerPool pool;
     private Path dataDir;
     private String previousAutoDeploy;
 
-    EmbeddedDatabase() {
+    /**
+     * @param configFile the eXist-db configuration file (conf.xml) to start the database with
+     */
+    EmbeddedDatabase(final Path configFile) {
+        this.configFile = configFile;
         Thread.currentThread().setContextClassLoader(new Classpath().getClassLoader(null));
     }
 
@@ -69,14 +73,9 @@ final class EmbeddedDatabase {
         previousAutoDeploy = System.getProperty(AUTODEPLOY_PROPERTY);
         System.setProperty(AUTODEPLOY_PROPERTY, "off");
 
-        final Optional<Path> home = Optional.ofNullable(System.getProperty("exist.home", System.getProperty("user.dir"))).map(Path::of);
-        final Path confFile = ConfigurationHelper.lookup("conf.xml", home);
-        final Configuration config;
-        if (confFile.isAbsolute() && Files.exists(confFile)) {
-            config = new Configuration(confFile.toAbsolutePath().toString());
-        } else {
-            config = new Configuration(FileUtils.fileName(confFile), home);
-        }
+        // eXist-db reads an absolute path from the file system; a relative file name would be
+        // looked up on the classpath first, where some other conf.xml could be
+        final Configuration config = new Configuration(configFile.toAbsolutePath().toString());
 
         dataDir = Files.createTempDirectory("org.exist.xqts.runner");
         config.setProperty(BrokerPool.PROPERTY_DATA_DIR, dataDir);
@@ -114,6 +113,22 @@ final class EmbeddedDatabase {
             System.setProperty(AUTODEPLOY_PROPERTY, previousAutoDeploy);
         } else {
             System.clearProperty(AUTODEPLOY_PROPERTY);
+        }
+    }
+
+    /**
+     * Returns the configuration file that the running database reports it was configured from.
+     *
+     * @return the configuration file, or empty if no database is running
+     */
+    static Optional<Path> runningConfigFile() {
+        if (!BrokerPool.isConfigured(BrokerPool.DEFAULT_INSTANCE_NAME)) {
+            return Optional.empty();
+        }
+        try {
+            return BrokerPool.getInstance(BrokerPool.DEFAULT_INSTANCE_NAME).getConfiguration().getConfigFilePath();
+        } catch (final EXistException e) {
+            return Optional.empty();
         }
     }
 }
